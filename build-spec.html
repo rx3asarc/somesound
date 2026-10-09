@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Odesli Gap — Build Spec (Part 0)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f5f2ec;
+    --paper2:#fbf9f5;
+    --ink:#1b1814;
+    --muted:#6f6a5e;
+    --faint:#a39d8e;
+    --accent:#c23a24;
+    --hairline:rgba(27,24,20,.14);
+    --hairline-soft:rgba(27,24,20,.08);
+    --serif:"Fraunces",Georgia,"Times New Roman",serif;
+    --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    --mono:"Space Grotesk",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --code:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{background:var(--paper); color:var(--ink); font-family:var(--sans); line-height:1.65; font-size:16px; -webkit-font-smoothing:antialiased;}
+  .sheet{max-width:680px; margin:0 auto; padding:0 22px;}
+
+  header{padding:64px 0 34px;}
+  .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); margin-bottom:20px;}
+  .kicker .dot{color:var(--accent);}
+  h1{font-family:var(--serif); font-weight:600; font-size:clamp(40px,8vw,66px); line-height:.98; letter-spacing:-.02em; text-wrap:balance;}
+  .sub{margin-top:20px; font-size:16.5px; color:var(--muted); max-width:36em; line-height:1.55;}
+  .meta{margin-top:26px; font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; color:var(--muted);}
+  .meta b{color:var(--ink); font-weight:600;}
+  .rule{height:3px; background:var(--accent); width:64px; margin-top:34px;}
+
+  .partlabel{font-family:var(--mono); font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:var(--accent); padding:44px 0 0;}
+  .partlabel:before{content:""; display:block; height:1px; background:var(--hairline); margin-bottom:22px;}
+
+  section{padding:38px 0 6px;}
+  .secno{font-family:var(--serif); font-style:italic; font-weight:500; font-size:15px; color:var(--accent);}
+  h2{font-family:var(--serif); font-weight:600; font-size:clamp(25px,4.5vw,33px); line-height:1.08; letter-spacing:-.015em; margin:6px 0 14px; text-wrap:balance;}
+  p{margin:0 0 15px;}
+  p.lead{font-size:17px; color:var(--muted); margin-bottom:18px;}
+  b{font-weight:600;}
+  a{color:var(--ink); text-decoration:none; border-bottom:1px solid rgba(194,58,36,.4); transition:border-color .15s ease;}
+  a:hover{border-bottom-color:var(--accent);}
+
+  /* -------- Figures -------- */
+  .figures{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:0 28px; margin:26px 0 8px;}
+  .fig{padding:16px 0 18px; border-top:1px solid var(--hairline);}
+  .fig .num{font-family:var(--serif); font-weight:600; font-size:clamp(32px,6vw,44px); line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums;}
+  .fig .num .u{font-size:.45em; font-weight:500; color:var(--muted); letter-spacing:0;}
+  .fig.red .num{color:var(--accent);}
+  .fig .lbl{font-size:12.5px; color:var(--muted); margin-top:8px; line-height:1.5; max-width:19em;}
+
+  /* -------- Tables -------- */
+  table{width:100%; border-collapse:collapse; margin:24px 0 10px; font-size:14px;}
+  th{font-family:var(--mono); font-weight:500; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); text-align:left; padding:10px 14px 8px 0; border-bottom:1px solid var(--ink);}
+  td{padding:11px 14px 11px 0; border-bottom:1px solid var(--hairline-soft); font-variant-numeric:tabular-nums; vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td.num{text-align:right;}
+  td.yes{color:var(--accent); font-weight:600;}
+  .td-name{font-weight:600;}
+  .foot{margin:14px 0 6px;}
+
+  blockquote{margin:24px 0; padding:14px 0 14px 20px; border-left:2px solid var(--accent); font-size:15.5px; line-height:1.6;}
+  blockquote b{color:var(--accent);}
+  blockquote.ink{border-left-color:var(--ink);}
+  blockquote.ink b{color:var(--ink);}
+
+  ul,ol{margin:0 0 16px 0; padding-left:0; list-style:none; counter-reset:li;}
+  li{position:relative; padding-left:26px; margin-bottom:9px; font-size:15px;}
+  li:before{position:absolute; left:0; color:var(--accent); font-family:var(--mono); font-size:12px; top:2px;}
+  ul li:before{content:"—";}
+  ol li:before{counter-increment:li; content:counter(li,decimal-leading-zero); color:var(--accent); font-size:10px; letter-spacing:.05em; top:4px;}
+  ol.done li:before{color:var(--ink);}
+
+  /* -------- Flow steps -------- */
+  .flow{display:flex; flex-direction:column; gap:0; margin:22px 0 10px;}
+  .step{display:flex; gap:18px; padding:14px 0; border-top:1px solid var(--hairline-soft);}
+  .step .n{font-family:var(--serif); font-style:italic; font-size:15px; color:var(--accent); width:30px; flex:none; padding-top:2px;}
+  .step .b b{display:block; margin-bottom:2px;}
+  .step .b span{font-size:13.5px; color:var(--muted);}
+  .step.off .n{color:var(--ink);}
+
+  /* -------- Code blocks -------- */
+  pre{background:var(--paper2); border:1px solid var(--hairline); border-left:2px solid var(--accent); padding:18px 20px; margin:16px 0 6px; font-family:var(--code); font-size:12.5px; line-height:1.7; overflow-x:auto; color:var(--ink); white-space:pre-wrap; word-break:break-word;}
+  pre .c{color:var(--faint);}
+  .codetitle{font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:22px 0 4px;}
+
+  /* -------- BOM / checkboxes -------- */
+  .bom{margin:20px 0 8px;}
+  .bom .row{display:flex; gap:12px; padding:11px 0; border-top:1px solid var(--hairline-soft); align-items:flex-start;}
+  .bom .row:first-child{border-top:none;}
+  .bom .box{width:15px; height:15px; border:1.5px solid var(--ink); flex:none; margin-top:4px; border-radius:2px;}
+  .bom .row.want .box{border-color:var(--accent);}
+  .bom .row.want .b b{color:var(--accent);}
+  .bom .t{font-size:15px;}
+  .bom .t b{display:block;}
+  .bom .t span{font-size:13px; color:var(--muted);}
+
+  footer{margin:56px 0 70px; padding-top:18px; border-top:1px solid var(--hairline); font-size:12px; color:var(--muted); line-height:1.7;}
+
+  @media (max-width:520px){
+    body{font-size:15.5px;}
+    header{padding:44px 0 28px;}
+    pre{font-size:11.5px; padding:14px;}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <div class="kicker">Field report · no. 000 <span class="dot">·</span> The build spec</div>
+    <h1>Build the Resolver — the MVP</h1>
+    <p class="sub">The most minimal possible version of the product: a share extension that turns any song link into a universal link, running on your own iPhone with no App Store, no approval, no paid developer account. Recipient side is free.</p>
+    <div class="meta"><b>Scope</b> minimal viable product · <b>By</b> L · <b>Prereq</b> a Mac with Xcode &nbsp;·&nbsp; <b>Companion to</b> report no. 001 (the research)</div>
+    <div class="rule"></div>
+  </header>
+
+  <div class="partlabel">Part 0 — The product build</div>
+
+  <section>
+    <div class="secno">§ 00</div>
+    <h2>What we're building</h2>
+    <p class="lead">One tap, no friction: share a song → it lands as a universal link that opens in the recipient's own streaming app.</p>
+    <div class="flow">
+      <div class="step"><div class="n">1</div><div class="b"><b>You share a song</b><span>from Spotify, Apple Music, YouTube, Tidal — tap the system Share button.</span></div></div>
+      <div class="step"><div class="n">2</div><div class="b"><b>Tap our app</b><span>it appears in the share sheet because it declares "I accept links."</span></div></div>
+      <div class="step"><div class="n">3</div><div class="b"><b>The extension resolves the link</b><span>takes the raw song URL, wraps it as song.link/{url}.</span></div></div>
+      <div class="step"><div class="n">4</div><div class="b"><b>The extension presents the native share sheet</b><span>the <em>real</em> iOS share sheet appears, right from the extension, with the song.link ready — exactly like sharing any link from any app. No host app hop needed.</span></div></div>
+      <div class="step off"><div class="n">5</div><div class="b"><b>Tap WhatsApp</b><span>it's a normal row in that sheet; picking it opens WhatsApp with the song.link already in the message. Pick the chat, send. No copying, no pasting.</span></div></div>
+    </div>
+    <blockquote class="ink"><b>Why no host hop?</b> iOS does not let a share extension open another app — <code>NSExtensionContext.open</code> is scoped to Today widgets and iMessage apps only, and the old <code>UIApplication.openURL</code> workaround is blocked on iOS 18. So the extension presents the share sheet <em>itself</em> (via <code>UIActivityViewController</code>), staying entirely inside Apple's sanctioned extension surface. Details in § 03.</blockquote>
+    <blockquote class="ink"><b>Zero backend.</b> For the MVP, the "resolver" is literally the public <a href="https://song.link">song.link</a> service. Our app just hands the song URL to it. The matching engine you'd eventually build is not needed for the MVP.</blockquote>
+  </section>
+
+  <section>
+    <div class="secno">§ 01</div>
+    <h2>The two files that are actually the app</h2>
+    <p class="lead">An iOS share extension cannot exist alone — it must live inside a host app. But the host's job for the MVP is just <em>to exist</em>: the extension itself presents the native share sheet (see § 00). The host is literally an empty container.</p>
+    <table>
+      <tr><th>Piece</th><th>What it does</th><th>UI needed</th></tr>
+      <tr><td class="td-name">Host app</td><td>Required container — iOS refuses to install an extension without one. For the MVP it does nothing at runtime: no window, no UI, no custom URL scheme. Empty shell.</td><td class="num">none</td></tr>
+      <tr><td class="td-name">Share Extension</td><td>Appears in the share sheet, reads the song URL, resolves it to song.link, and presents the <em>native</em> share sheet with the resolved link</td><td class="num">none</td></tr>
+    </table>
+    <p class="foot">The extension's whole job is ~40 lines of Swift. That's the product.</p>
+  </section>
+
+  <section>
+    <div class="secno">§ 02</div>
+    <h2>The file that makes it appear — and resolve</h2>
+    <p class="lead">The extension's Info.plist declares <b>what it is</b> (a share service), <b>what it accepts</b> (URLs — and plain text so links shared as text still resolve) and <b>which class runs it</b>. There is no host hop, so the host needs <em>no</em> custom URL scheme at all.</p>
+        <pre><span class="c">// EXTENSION Info.plist — the whole "share sheet" magic</span>
+    NSExtension
+      NSExtensionPointIdentifier   = com.apple.share-services
+      NSExtensionPrincipalClass     = $(PRODUCT_MODULE_NAME).ShareViewController
+      NSExtensionActivationRule     = <span class="c">// accept public.url, or plain text (URLs shared as text)</span>
+        SUBQUERY(extensionItems, $i,
+          SUBQUERY($i.attachments, $a,
+            ANY $a.registeredTypeIdentifiers == "public.url"
+            OR ANY $a.registeredTypeIdentifiers == "public.plain-text"
+          ).@count &gt; 0
+        ).@count &gt; 0</pre>
+        <p><b>NSExtensionPointIdentifier</b> = <code>com.apple.share-services</code> is the line that turns it into a share-sheet entry. The <b>ActivationRule</b> predicate makes it appear <em>specifically when you share a URL or link-as-text</em> rather than cluttering every share sheet. Use the <b>fully-qualified</b> <code>$(PRODUCT_MODULE_NAME).ShareViewController</code> principal class — a bare <code>ShareViewController</code> leaves Xcode unable to find the class at launch.</p>
+        <pre><span class="c">// Delete any NSExtensionMainStoryboard / MainInterface.storyboard</span>
+    <span class="c">// — the plain view controller (§ 03) needs a principal class, not a storyboard entry.</span></pre>
+        <p>The extension <em>itself</em> presents the share sheet (§ 03), so no <code>CFBundleURLTypes</code> scheme is needed on either target. The old "<code>resolver://</code> hop to the host" is <b>not</b> sanctioned — iOS scopes <code>NSExtensionContext.open</code> to Today widgets and iMessage apps only, and blocks every direct app-open path from a share extension. That's why the host is an empty container.</p>
+  </section>
+
+  <section>
+    <div class="secno">§ 03</div>
+    <h2>Two short files — the whole app</h2>
+<pre><span class="c">// ShareViewController.swift — the ONE functional file.</span>
+//
+// What it MUST do (the whole product), in order:
+//
+//  1. On appear: iterate every attachment (extensionContext.inputItems.flatMap attachments).
+//  2. For each, check hasItemConformingToTypeIdentifier("public.url"). If found, load that item
+//     as a URL; else fall back to "public.plain-text" and detect a URL in the text.
+//  3. Resolve: build song.link/{url}. Do NOT string-interpolate the raw URL into a query —
+//     ampersands ( & ) and question marks in the raw link break the URL. Build it so they
+//     percent-encode the source URL as one path segment ( RFC 3986 pchar): encode
+//     every byte not in [A-Za-z0-9-._~], so `:` `/` `?` `&` become %3A %2F %3F
+//     %26. Example: https://open.spotify.com/track/123?si=abc -> song.link/https%3A%2F
+//     %2Fopen.spotify.com%2Ftrack%2F123%3Fsi%3Dabc. Smoke-test once against song.link on launch
+//  4. Present: present a UIActivityViewController(activityItems: [resolvedUrl]) — from THIS
+//     view controller. NO host app hop. NO SLComposeServiceViewController compose UI.
+//     header: wrap the URL in a UIActivityItemSource whose activityViewControllerLinkMetadata returns
+//     an LPLinkMetadata whose title is just the resolved song.link URL ( bare - no API pre-fetch,no
+//     title/icon fetch;no backend).Wrap the URL in a UIActivityItemSource,set item.originalURL,and item.url
+//     to that same URL; it yields a thumbnail image,not an icon.
+//     Optional: for the real song title, fetch api.song.link/v1-alpha.1/links response.json.title
+//     ( prior) and use it - else the resolved song.link URL itself is an honest title. No backend required for the MVP.
+//  5. DON'T call completeRequest right after presenting (that kills the sheet before the
+//     user can act. Instead, call it inside the sheet's completionWithItemsHandler, which
+//     fires on both completed, and cancelled, to end the session.
+
+// Keep the whole class ~40 lines. Hop to the main thread before touching UI. UIKit
+// callbacks land on a background thread. No force-unwraps on optional URL parts.
+</pre>
+<pre><span class="c">// ResolverApp.swift — the host app. EMPTY by design.</span>
+import SwiftUI
+@main
+struct ResolverApp: App {
+  var body: some Scene { WindowGroup { EmptyView() } }
+}
+</pre>
+    <p class="foot">This is the "normal share" behavior you asked for. The extension resolves the link → <code>UIActivityViewController</code> appears, right from the extension, with the song.link ready. WhatsApp is a normal row in that sheet; tapping it opens WhatsApp with the link pre-filled — no copying, no pasting. The host app is a static empty shell — it exists only because Apple requires every extension to live inside one. Its exact Swift syntax is trivial and left to the build agent.</p>
+    
+  </section>
+
+  <section>
+    <div class="secno">§ 04</div>
+    <h2>Get it on your iPhone — no App Store</h2>
+    <p class="lead">A free Apple ID (Personal Team) is enough. No approval, no $99, no review — review only applies if you <em>distribute</em>.</p>
+    <ol>
+      <li><b>Have a Mac with Xcode.</b> This is the one hard requirement — Xcode is the only tool that can sign and install to an iPhone.</li>
+      <li><b>Add your Apple ID</b> in Xcode → Settings → Accounts → “+” → Add Apple ID. This creates a free <b>Personal Team</b>.</li>
+      <li><b>Set Signing Team</b> to your Personal Team in the project's Signing settings.</li>
+      <li><b>Enable Developer Mode on the phone</b> — Settings → Privacy &amp; Security → Developer Mode → toggle on (iPhone must be iOS&nbsp;16 or later; it prompts for a reboot). Without this, the sideload install <b>fails</b>.</li>
+      <li><b>Plug in your iPhone</b> and hit <b>Run</b>. Xcode signs, installs and launches it directly.</li>
+      <li><b>Trust it</b>: Settings → General → VPN &amp; Device Management → Trust your Apple ID profile.</li>
+      <li><b>Done.</b> Share a song → your app appears in the share sheet.</li>
+    </ol>
+    <blockquote><b>The catches:</b> (1)&nbsp;free-account installs are signed for <b>7 days</b>, then you re-run from Xcode to renew; (2)&nbsp;Apple's free tier caps at <b>3 apps per device</b> and <b>10 App IDs per 7 days</b> — fine for a single project on one phone; (3)&nbsp;minimum OS is <b>iOS 16</b> (Developer Mode and the modern share sheet need it). The paid $99/yr Developer Program removes the 7-day and device caps but <em>still</em> needs no App Store review for personal builds — review is only for public distribution.</blockquote>
+    <blockquote class="ink"><b>Make it one tap, forever - the real setup-once:</b> iOS cannot pin
+    your action for you. Pinning is a user decision,so guide them once:in the share sheet's
+    <b>app row</b> (the short list up top is AirDrop,and other people;our action sits deeper
+    near the other apps),tap <b>More</b>,then <b>Edit</b>,and tap the green <b>+</b> to move it
+    into <b>Favorites</b>. Now it sits near the top of the app row,not buried under More. Icon:
+    the row shows the <em>host app's</em> icon ( the extension inherits it actually. So give it a real
+    one - a blank/default glyph reads as broken in the row.</blockquote>
+  </section>
+
+  <section>
+    <div class="secno">§ 05</div>
+    <h2>Why the recipient needs to do nothing</h2>
+    <p class="lead">"Select which app to open" is the <em>fallback</em>, not the default.</p>
+    <p>A universal link (<code>song.link/…</code>) is a <b>redirect layer</b>: when the recipient taps it, the landing page <b>detects their device/browser</b> and <b>tries</b> to open their installed app. Truth check: song.link rarely hard-redirects. In practice it mostly shows a <b>chooser/list</b> with their likely app first — and remembers their last choice — so open-in-app happens where detection is confident,. otherwise it's a friendly chooser, a tap away. Your own resolver would do the same thing later; song.link does it for free.</p>
+    <div class="figures">
+      <div class="fig"><div class="num">0</div><div class="lbl">app installs the recipient needs — any phone, any browser</div></div>
+      <div class="fig"><div class="num">1</div><div class="lbl">tap to open in their platform — remembered chooser first, auto-open where confident</div></div>
+      <div class="fig red"><div class="num">$0</div><div class="lbl">backend for the MVP — song.link is the resolver until volume justifies building your own</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="secno">§ 06</div>
+    <h2>The honest prerequisites (BOM)</h2>
+    <div class="bom">
+      <div class="row"><div class="box"></div><div class="t"><b>Mac with Xcode</b><span>the only hard requirement — everything else follows</span></div></div>
+      <div class="row"><div class="box"></div><div class="t"><b>iPhone + USB cable</b><span>for the direct install</span></div></div>
+      <div class="row"><div class="box"></div><div class="t"><b>Free Apple ID</b><span>Personal Team — no paid account needed to run on your own device</span></div></div>
+      <div class="row want"><div class="box"></div><div class="t"><b>A name + bundle ID</b><span>e.g. com.you.resolver — the one thing that must be unique</span></div></div>
+      <div class="row"><div class="box"></div><div class="t"><b>An icon</b><span>required - the share row shows this icon ( the extension inherits it from the host app);a blank/default glyph reads broken</span></div></div>
+    </div>
+    <p class="foot">Everything marked red is optional for a personal-device build. The first three rows are the whole stack.</p>
+  </section>
+
+  <section>
+    <div class="secno">§ 07</div>
+    <h2>What's deliberately left out (of the MVP)</h2>
+    <ul>
+      <li><b>No custom contact picker / recents / per-contact preferences</b> — WhatsApp is reached in the MVP through the <em>system</em> share sheet (tap it, pick a chat), not through our own in-app contact UI. Our own picker, favorites, recent-share history and per-contact platform prefs are the next layer. The MVP proves the core: share → universal link → send.</li>
+      <li><b>No own matching engine</b> — song.link resolves for you. Build the ISRC layer only when volume justifies it.</li>
+      <li><b>No Android</b> — separate build; this MVP is iPhone only.</li>
+      <li><b>No App Store / TestFlight</b> — sideload to your own device is the entire point.</li>
+    </ul>
+    <p class="lead" style="margin-top:26px;">The goal of the MVP is not a product. It's proof: <b>one song, one tap, one universal link, zero friction</b> — running on hardware you hold.</p>
+  </section>
+
+  <section>
+    <div class="secno">§ 08</div>
+    <h2>Engineering skills — recommended in unison</h2>
+    <p class="lead">A build is only as honest as its plan and its review. These four skills run together, in the order the workflow wants: plan → review → execute → compound. Installed on this machine as the <b>Every Inc Compound Engineering</b> tree.</p>
+    <table>
+      <tr><th>Skill</th><th>Role in this build</th><th class="num">Step</th></tr>
+      <tr><td class="td-name">ce-plan</td><td>Turns the brief into a verified build plan — re-checks every iOS 18 / song.link fact against reality before you start</td><td class="num">1</td></tr>
+      <tr><td class="td-name">ce-code-review · swift-ios</td><td>Swift/iOS reviewer persona — hunts the three bugs that bite a share extension: state, memory, concurrency</td><td class="num">2</td></tr>
+      <tr><td class="td-name">ce-work</td><td>Executes the plan with quality gates — finishes the feature instead of leaving half-built scaffolding</td><td class="num">3</td></tr>
+      <tr><td class="td-name">ce-compound</td><td>Captures what you learned (the song.link contract, how the extension presents the share sheet) so the next build starts from knowledge</td><td class="num">4</td></tr>
+    </table>
+    <p class="foot">The loop: <code>ce-plan → ce-code-review → [revise] → ce-work → ce-compound</code>. Each cycle makes the next unit easier — that's the "compound."</p>
+    <blockquote class="ink"><b>Reference:</b> this is the same discipline as <b>Wayfinder by Matt Pocock</b> — charting a chunk of work too big for one session as decision tickets, resolved until the route is clear. Wayfinder isn't installed yet; the CE tree covers its planning function. If you want it added, that's a separate step — <em>this brief only recommends.</em></blockquote>
+  </section>
+
+  <section>
+    <div class="secno">§ 09</div>
+    <h2>Handoff — what the build agent needs</h2>
+    <p class="lead">This brief is a handoff artifact: hand it (and report no. 001, the research) to a capable agent and it should be able to build the Resolver. Two things make that handoff actually work.</p>
+    <p><b>1. The build order is fixed.</b> Don't let scope creep win. The MVP is exactly two pieces — an empty host app and one ~40-line share extension. If the agent starts adding UI, recents, or an own-matching engine, it's building the wrong thing. Keep it minimal <em>by design</em>.</p>
+    <p><b>2. Run the review lineup before you call it done.</b> These personas catch what a first build misses:</p>
+    <table>
+      <tr><th>Reviewer</th><th>Why it matters here</th></tr>
+      <tr><td class="td-name">ce-adversarial-reviewer</td><td>Actively tries to <em>break</em> the implementation — failure scenarios for the extension's async load and URL handling, not just "does it match the pattern."</td></tr>
+      <tr><td class="td-name">ce-scope-guardian-reviewer</td><td>Challenges anything that isn't the stated goal. This is the anti-scope-creep gate — the whole point of the MVP is minimal.</td></tr>
+      <tr><td class="td-name">ce-swift-ios-reviewer</td><td>Swift/iOS correctness: state, memory, concurrency — the three classes of bug that silently break a share extension on iOS 18.</td></tr>
+      <tr><td class="td-name">ce-security-reviewer</td><td>Checks the URL input handling — the extension takes external input ( the shared song URL), resolves it to song.link,and feeds it to <code>UIActivityViewController</code>; it must not misfire, misparse,, or leakunexpected content. No host hop, so nothing leaves the sandbox unintended.</td></tr>
+    </table>
+    <blockquote class="ink"><b>The line that matters for handoff:</b> the agent should be able to take this document and <b>produce the code,the Info.plist keys, and the sideload steps</b> without asking the human for clarification. If anything here reads ambiguous, it's a gap in this brief — flag it before building, not after.</blockquote>
+        <blockquote class="ink"><b>One device test gates the whole architecture:</b> after building verify on a phone,with these exact inputs: share from <b>Spotify</b> (it shares a URL)and from <b>Apple Music or YouTube</b> (they may share plain text). Pass means:(1) the WhatsApp's own row appears inside the UIActivityViewController we present from inside the share extension,(2) tapping it opens WhatsApp's own composer with the exact song.link text,(3) sending lands cleanly,and(4) the extension closes cleanly after <em>both</em> send and cancel. The people-suggestions row ( drawn from WhatsApp's INSendMessageIntent donations)is something to <em>record</em> not assume:whether it shows inside a sheet launched from an extension is unknown. If (1) or (2) fails,the last direct-open hedge left is the responder-chain UIWindowScene.open ( see § 03 ); verified working on iOS  ​​18,but undocumented,and App-Review-risky,and sideload-only).To use it,reach the scene from the extension:walk view.window?.windowScene ( or the responder chain,and name the URL scheme explicitly: whatsapp://send?text=<percent-encoded song.link>.Test that hedge on the phone's <em>current</em> iOS - in 2026 that will be iOS  ​​26,,not just 18),before falling back to the paste fallback. Do not silently ship one that resolves then does nothing.and while you are there,have the tester pin the app to Favorites (see Section 04) so they judge the normal one-tap path rather than the deep-scroll one.</blockquote>
+  </section>
+
+  <footer>
+    <div class="toplink">Field report · no. 000 — build spec</div>
+    <p style="margin-top:8px;">Companion to report no. 001 (The Odesli Gap — the research). The build order stays true to the thesis: the resolver is the entry point; the catalog-intelligence is where the money lives. This brief gets you the entry point.</p>
+  </footer>
+
+</div>
+</body>
+</html>
