@@ -131,9 +131,9 @@
     <div class="flow">
       <div class="step"><div class="n">1</div><div class="b"><b>You share a song</b><span>from Spotify, Apple Music, YouTube, Tidal — tap the system Share button.</span></div></div>
       <div class="step"><div class="n">2</div><div class="b"><b>Tap our app</b><span>it appears in the share sheet because it declares "I accept links."</span></div></div>
-      <div class="step"><div class="n">3</div><div class="b"><b>The extension resolves the link</b><span>takes the raw song URL, wraps it as song.link/{url}.</span></div></div>
+      <div class="step"><div class="n">3</div><div class="b"><b>The extension resolves the link</b><span>takes the raw song URL, wraps it as https://song.link/{url}.</span></div></div>
       <div class="step"><div class="n">4</div><div class="b"><b>The extension presents the native share sheet</b><span>the <em>real</em> iOS share sheet appears, right from the extension, with the song.link ready — exactly like sharing any link from any app. No host app hop needed.</span></div></div>
-      <div class="step off"><div class="n">5</div><div class="b"><b>Tap WhatsApp</b><span>it's a normal row in that sheet; picking it opens WhatsApp with the song.link already in the message. Pick the chat, send. No copying, no pasting.</span></div></div>
+      <div class="step off"><div class="n">5</div><div class="b"><b>Tap WhatsApp</b><span>expected: a normal rowin that sheet; picking it opens WhatsApp with the song.link already in the message. Pick the chat, send. GATED by the § 09 device test — observe on-device, don't assume.</span>
     </div>
     <blockquote class="ink"><b>Why no host hop?</b> iOS does not let a share extension open another app — <code>NSExtensionContext.open</code> is scoped to Today widgets and iMessage apps only, and the old <code>UIApplication.openURL</code> workaround is blocked on iOS 18. So the extension presents the share sheet <em>itself</em> (via <code>UIActivityViewController</code>), staying entirely inside Apple's sanctioned extension surface. Details in § 03.</blockquote>
     <blockquote class="ink"><b>Zero backend.</b> For the MVP, the "resolver" is literally the public <a href="https://song.link">song.link</a> service. Our app just hands the song URL to it. The matching engine you'd eventually build is not needed for the MVP.</blockquote>
@@ -159,7 +159,8 @@
     NSExtension
       NSExtensionPointIdentifier   = com.apple.share-services
       NSExtensionPrincipalClass     = $(PRODUCT_MODULE_NAME).ShareViewController
-      NSExtensionActivationRule     = <span class="c">// accept public.url, or plain text (URLs shared as text)</span>
+      NSExtensionAttributes
+        NSExtensionActivationRule     = <span class="c">// { String predicate: only bites when a shared item holds a URL, or plain text }</span>
         SUBQUERY(extensionItems, $i,
           SUBQUERY($i.attachments, $a,
             ANY $a.registeredTypeIdentifiers == "public.url"
@@ -169,7 +170,7 @@
         <p><b>NSExtensionPointIdentifier</b> = <code>com.apple.share-services</code> is the line that turns it into a share-sheet entry. The <b>ActivationRule</b> predicate makes it appear <em>specifically when you share a URL or link-as-text</em> rather than cluttering every share sheet. Use the <b>fully-qualified</b> <code>$(PRODUCT_MODULE_NAME).ShareViewController</code> principal class — a bare <code>ShareViewController</code> leaves Xcode unable to find the class at launch.</p>
         <pre><span class="c">// Delete any NSExtensionMainStoryboard / MainInterface.storyboard</span>
     <span class="c">// — the plain view controller (§ 03) needs a principal class, not a storyboard entry.</span></pre>
-        <p>The extension <em>itself</em> presents the share sheet (§ 03), so no <code>CFBundleURLTypes</code> scheme is needed on either target. The old "<code>resolver://</code> hop to the host" is <b>not</b> sanctioned — iOS scopes <code>NSExtensionContext.open</code> to Today widgets and iMessage apps only, and blocks every direct app-open path from a share extension. That's why the host is an empty container.</p>
+        <p>The extension <em>itself</em> presents the share sheet (§ 03), so no <code>CFBundleURLTypes</code> scheme is needed on either target. The old "<code>resolver://</code> hop to the host" is <b>not</b> sanctioned — iOS scopes <code>NSExtensionContext.open</code> to Today widgets and iMessage apps only, and blocks every direct app-open path from a share extension — except the responder-chain UIWindowScene.open (§ 09), which is undocumented,and sideload-only. That's why the host is an empty container.</p>
   </section>
 
   <section>
@@ -182,26 +183,33 @@
 //  1. On appear: iterate every attachment (extensionContext.inputItems.flatMap attachments).
 //  2. For each, check hasItemConformingToTypeIdentifier("public.url"). If found, load that item
 //     as a URL; else fall back to "public.plain-text" and detect a URL in the text.
-//  3. Resolve: build song.link/{url}. Do NOT string-interpolate the raw URL into a query —
+//  3. Resolve: build https://song.link/{url}. Do NOT string-interpolate the raw URL into a query —
 //     ampersands ( & ) and question marks in the raw link break the URL. Build it so they
 //     percent-encode the source URL as one path segment ( RFC 3986 pchar): encode
 //     every byte not in [A-Za-z0-9-._~], so `:` `/` `?` `&` become %3A %2F %3F
-//     %26. Example: https://open.spotify.com/track/123?si=abc -> song.link/https%3A%2F
-//     %2Fopen.spotify.com%2Ftrack%2F123%3Fsi%3Dabc. Smoke-test once against song.link on launch
-//  4. Present: present a UIActivityViewController(activityItems: [resolvedUrl]) — from THIS
-//     view controller. NO host app hop. NO SLComposeServiceViewController compose UI.
-//     header: wrap the URL in a UIActivityItemSource whose activityViewControllerLinkMetadata returns
-//     an LPLinkMetadata whose title is just the resolved song.link URL ( bare - no API pre-fetch,no
-//     title/icon fetch;no backend).Wrap the URL in a UIActivityItemSource,set item.originalURL,and item.url
-//     to that same URL; it yields a thumbnail image,not an icon.
-//     Optional: for the real song title, fetch api.song.link/v1-alpha.1/links response.json.title
-//     ( prior) and use it - else the resolved song.link URL itself is an honest title. No backend required for the MVP.
-//  5. DON'T call completeRequest right after presenting (that kills the sheet before the
-//     user can act. Instead, call it inside the sheet's completionWithItemsHandler, which
-//     fires on both completed, and cancelled, to end the session.
+//     %26. Example: https://open.spotify.com/track/123?si=abc -> https://song.link/https%3A%2F
+//     %2Fopen.spotify.com%2Ftrack%2F123%3Fsi%3Dabc. One-time dev check: open the built https://song.link/<encoded> in Safari once before shipping
+//  4. Present: build the link metadata first,then hand it to the sheet:
+//     let md = LPLinkMetadata(); md.title = resolvedUrl.absoluteString    // bare baseline, no network
+//     md.originalURL = resolvedUrl; md.url = resolvedUrl         // rich preview lands on the link itself
+//     md.imageProvider = nil                                         // no fetch, so no thumbnail either.
+//     Optional real title: dead - the Odesli/Songlink API is retired; skip for the MVP.
+//     let itm = UIActivityItemSource(placeholderItem: resolvedUrl as Any)
+//     itm.activityViewControllerLinkMetadata(_:) -> LPLinkMetadata? { md }
+//     itm.itemForActivityType(_:_:) -> Any? { resolvedUrl }         // payload the share sheet hands onward
+//     present UIActivityViewController(activityItems: [itm],applicationActivities: nil)
+//     from THIS view controller. NO host hop,NO SLComposeServiceViewController UI.
+//  5. DON'T call completeRequest right after present - it kills the sheet before the user acts.
+//     Call it inside the sheet's completionWithItemsHandler,on completed AND cancelled,to end the session.
+//     NO-URL path: no attachment held a URL,text held none,or an item load failed - call
+//     extensionContext.cancelRequest(withError:),or completeRequest( - never leave an empty view hanging.
+//     Several attachments/URLs: use the FIRST public.url you find,stop enumerating.
 
-// Keep the whole class ~40 lines. Hop to the main thread before touching UI. UIKit
-// callbacks land on a background thread. No force-unwraps on optional URL parts.
+//     Detect link-in-text with NSDataDetector(link type),then percent-encode ONLYthe matched URL.
+
+// Keep the whole class ~40 lines. UIKit delivers UI callbacks on the MAIN thread.Background
+// callbacks come only from NSItemProvider.loadItem/loadObject completion handlers - hop to main there. 
+// No force-unwraps on optional URL parts.
 </pre>
 <pre><span class="c">// ResolverApp.swift — the host app. EMPTY by design.</span>
 import SwiftUI
@@ -210,7 +218,7 @@ struct ResolverApp: App {
   var body: some Scene { WindowGroup { EmptyView() } }
 }
 </pre>
-    <p class="foot">This is the "normal share" behavior you asked for. The extension resolves the link → <code>UIActivityViewController</code> appears, right from the extension, with the song.link ready. WhatsApp is a normal row in that sheet; tapping it opens WhatsApp with the link pre-filled — no copying, no pasting. The host app is a static empty shell — it exists only because Apple requires every extension to live inside one. Its exact Swift syntax is trivial and left to the build agent.</p>
+    <p class="foot">This is the "normal share" behavior you asked for. The extension resolves the link → <code>UIActivityViewController</code> appears, right from the extension, with the song.link ready. WhatsApp is a normal row in that sheet; tapping it opens WhatsApp with the link pre-filled — gated by the § 09 device test,observe on-device. No copying, no pasting. The host app is a static empty shell — it exists only because Apple requires every extension to live inside one. Its exact Swift syntax is trivial and left to the build agent.</p>
     
   </section>
 
@@ -222,12 +230,13 @@ struct ResolverApp: App {
       <li><b>Have a Mac with Xcode.</b> This is the one hard requirement — Xcode is the only tool that can sign and install to an iPhone.</li>
       <li><b>Add your Apple ID</b> in Xcode → Settings → Accounts → “+” → Add Apple ID. This creates a free <b>Personal Team</b>.</li>
       <li><b>Set Signing Team</b> to your Personal Team in the project's Signing settings.</li>
-      <li><b>Enable Developer Mode on the phone</b> — Settings → Privacy &amp; Security → Developer Mode → toggle on (iPhone must be iOS&nbsp;16 or later; it prompts for a reboot). Without this, the sideload install <b>fails</b>.</li>
-      <li><b>Plug in your iPhone</b> and hit <b>Run</b>. Xcode signs, installs and launches it directly.</li>
+      <li><b>Plug in your iPhone</b> — connecting it to Xcode once makes the Developer Mode toggle appear it often stays hidden until the device has been tethered,or a sideload was attemptedDon't run yet</li>
+            <li><b>Enable Developer Mode</b> — Settings → Privacy &amp; Security → Developer Mode → toggle on iPhone must be iOS&nbsp;16 or later;it prompts for a rebootWithout this, the sideload install <b>fails</b></li>
+            <li><b>Hit Run</b> — Xcode signs,installs,and launches it directly. Re-connect only to renew the 7-day sign each week</li>
       <li><b>Trust it</b>: Settings → General → VPN &amp; Device Management → Trust your Apple ID profile.</li>
       <li><b>Done.</b> Share a song → your app appears in the share sheet.</li>
     </ol>
-    <blockquote><b>The catches:</b> (1)&nbsp;free-account installs are signed for <b>7 days</b>, then you re-run from Xcode to renew; (2)&nbsp;Apple's free tier caps at <b>3 apps per device</b> and <b>10 App IDs per 7 days</b> — fine for a single project on one phone; (3)&nbsp;minimum OS is <b>iOS 16</b> (Developer Mode and the modern share sheet need it). The paid $99/yr Developer Program removes the 7-day and device caps but <em>still</em> needs no App Store review for personal builds — review is only for public distribution.</blockquote>
+    <blockquote><b>The catches:</b> (1)&nbsp;free-account installs are signed for <b>7 days</b>, then you re-run from Xcode to renew; (2)&nbsp;Apple's free tier caps at <b>3 apps per device</b> and <b>10 App IDs per 7 days</b> — fine for a single project on one phone; (3)&nbsp;minimum OS is <b>iOS 16</b> (Developer Mode and the modern share sheet need it). The paid $99/yr Developer Program removes the 7-day and device caps but <em>still</em> needs no App Store review for personal builds — review is only for public distribution;(4)&nbsp;the extension's bundle ID must be a <b>child</b> of the host's — e.g. <code>com.you.resolver.ShareExt</code> —,both targets set <b>deployment iOS 16</b>,and each build eats <b>2 of the 10 App IDs</b> per 7 days.</blockquote>
     <blockquote class="ink"><b>Make it one tap, forever - the real setup-once:</b> iOS cannot pin
     your action for you. Pinning is a user decision,so guide them once:in the share sheet's
     <b>app row</b> (the short list up top is AirDrop,and other people;our action sits deeper
@@ -259,7 +268,7 @@ struct ResolverApp: App {
       <div class="row want"><div class="box"></div><div class="t"><b>A name + bundle ID</b><span>e.g. com.you.resolver — the one thing that must be unique</span></div></div>
       <div class="row"><div class="box"></div><div class="t"><b>An icon</b><span>required - the share row shows this icon ( the extension inherits it from the host app);a blank/default glyph reads broken</span></div></div>
     </div>
-    <p class="foot">Everything marked red is optional for a personal-device build. The first three rows are the whole stack.</p>
+    <p class="foot">Only them bundle-ID row is amber—— and it must be unique the one non-negotiable stringEvery other row is required for the plain install.</p>
   </section>
 
   <section>
@@ -303,7 +312,7 @@ struct ResolverApp: App {
       <tr><td class="td-name">ce-security-reviewer</td><td>Checks the URL input handling — the extension takes external input ( the shared song URL), resolves it to song.link,and feeds it to <code>UIActivityViewController</code>; it must not misfire, misparse,, or leakunexpected content. No host hop, so nothing leaves the sandbox unintended.</td></tr>
     </table>
     <blockquote class="ink"><b>The line that matters for handoff:</b> the agent should be able to take this document and <b>produce the code,the Info.plist keys, and the sideload steps</b> without asking the human for clarification. If anything here reads ambiguous, it's a gap in this brief — flag it before building, not after.</blockquote>
-        <blockquote class="ink"><b>One device test gates the whole architecture:</b> after building verify on a phone,with these exact inputs: share from <b>Spotify</b> (it shares a URL)and from <b>Apple Music or YouTube</b> (they may share plain text). Pass means:(1) the WhatsApp's own row appears inside the UIActivityViewController we present from inside the share extension,(2) tapping it opens WhatsApp's own composer with the exact song.link text,(3) sending lands cleanly,and(4) the extension closes cleanly after <em>both</em> send and cancel. The people-suggestions row ( drawn from WhatsApp's INSendMessageIntent donations)is something to <em>record</em> not assume:whether it shows inside a sheet launched from an extension is unknown. If (1) or (2) fails,the last direct-open hedge left is the responder-chain UIWindowScene.open ( see § 03 ); verified working on iOS  ​​18,but undocumented,and App-Review-risky,and sideload-only).To use it,reach the scene from the extension:walk view.window?.windowScene ( or the responder chain,and name the URL scheme explicitly: whatsapp://send?text=<percent-encoded song.link>.Test that hedge on the phone's <em>current</em> iOS - in 2026 that will be iOS  ​​26,,not just 18),before falling back to the paste fallback. Do not silently ship one that resolves then does nothing.and while you are there,have the tester pin the app to Favorites (see Section 04) so they judge the normal one-tap path rather than the deep-scroll one.</blockquote>
+        <blockquote class="ink"><b>One device test gates the whole architecture:</b> after building verify on a phone,with these exact inputs: share from <b>Spotify</b> (it shares a URL)and from <b>Apple Music or YouTube</b> (they may share plain text). Pass means:(1) the WhatsApp's own row appears inside the UIActivityViewController we present from inside the share extension,(2) tapping it opens WhatsApp's own composer with the exact song.link text,(3) sending lands cleanly,and(4) the extension closes cleanly after <em>both</em> send and cancel. The people-suggestions row ( drawn from WhatsApp's INSendMessageIntent donations)is something to <em>record</em> not assume:whether it shows inside a sheet launched from an extension is unknown. If (1) or (2) fails,the last hedge left is responder-chain UIWindowScene.open(_:options:completionHandler:),undocumented,App-Review-risky,and sideload-only.To use it,reach a scene by walking view.window?.windowScene,or the responder chain,and call completeRequest only after it finishes,or on cancel.Name the scheme explicitly: whatsapp://send?text=<re-encoded song.link>.Percent-encode the resolved link AGAIN as a query value:its own % signs become %25,,so %3A becomes %253A. Test on the phone current iOS,2026 = iOS  26,not just 18.If the WhatsApp path cannot be made to work,the real fallback is paste:write the song.link URL to UIPasteboard.general,and tell the user to paste manually - never resolving to nothing.And call completeRequest on cancel too,so the extension always closes on its own.Do not ship a buildthat resolves then does nothing.and while you are there,have the tester pin the app to Favorites (see Section 04) so they judge the normal one-tap path rather than the deep-scroll one.</blockquote>
   </section>
 
   <footer>
